@@ -1,55 +1,44 @@
-name: Publish Release Executable
+name: Release
 
 on:
   release:
     types: [created]
-
+    
 jobs:
-  publish:
-    name: Publish Release Executable
-    runs-on: ${{ matrix.os }}
+  create-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: taiki-e/create-gh-release-action@v1
+        #with:
+          # (optional)
+          #changelog: CHANGELOG.md
+        env:
+          # (required)
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  upload-assets:
     strategy:
       matrix:
-        os: [windows-latest, ubuntu-latest]
-        target: [x86_64-pc-windows-msvc, x86_64-unknown-linux-gnu]
+        os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
+    runs-on: ${{ matrix.os }}
     steps:
-    - name: Checkout Code
-      uses: actions/checkout@v2
-    - name: Install Rust
-      uses: actions-rs/toolchain@v1
-      with:
-        profile: minimal
-        toolchain: stable
-    - name: Build Executable
-      run: |
-        cargo build --release --target ${{ matrix.target }}
-      env:
-        BUILD_TARGET: ${{ matrix.target }}
-    - name: Create Release
-      id: create_release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: ${{ github.ref }}
-        release_name: Release ${{ github.ref }}
-        body: |
-          Release of the ${{ github.ref }} tag
-        draft: false
-        prerelease: false
-    - name: Upload Executable
-      id: upload_executable
-      uses: actions/upload-artifact@v2
-      with:
-        name: your_executable-${{ env.BUILD_TARGET }}
-        path: ./target/${{ env.BUILD_TARGET }}/release/your_executable
-    - name: Attach Executable to Release
-      id: attach_to_release
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ${{ steps.upload_executable.outputs.artifact_path }}
-        asset_name: your_executable-${{ env.BUILD_TARGET }}
-        asset_content_type: application/octet-stream
+      - uses: actions/checkout@v2
+      - uses: taiki-e/upload-rust-binary-action@v1
+        with:
+          # (required)
+          bin: playlist-manager
+          # (optional) On which platform to distribute the `.tar.gz` file.
+          # [default value: unix]
+          # [possible values: all, unix, windows, none]
+          tar: unix
+          # (optional) On which platform to distribute the `.zip` file.
+          # [default value: windows]
+          # [possible values: all, unix, windows, none]
+          zip: windows
+        env:
+          # (required)
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
