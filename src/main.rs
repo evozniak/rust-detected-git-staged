@@ -1,17 +1,18 @@
-use git2::{self, Diff};
+use git2::{Repository, StatusOptions};
 
-fn print_staged_files(diff: &Diff) {
-    for delta in diff.deltas() {
-        let path = delta.new_file().path().unwrap_or_else(|| delta.old_file().path().unwrap());
-        println!("{}", path.display());
+fn print_staged() -> Result<(), git2::Error> {
+    let git_repo = Repository::discover(".")?;
+    let mut status_opts = StatusOptions::new();
+    status_opts.include_untracked(false);
+    let statuses = git_repo.statuses(Some(&mut status_opts))?;
+    for file_status in statuses.iter().filter(|e| e.status().is_index_modified() || e.status().is_index_new()) {
+        if let Some(path) = file_status.path() {
+            println!("{}", git_repo.workdir().unwrap().join(path).display());
+        }
     }
+    Ok(())
 }
 
 fn main() {
-    let git_repo = git2::Repository::open_from_env().unwrap();
-    let read_staged_files = git_repo.diff_tree_to_index(None, None, None);
-    let diff = match &read_staged_files {
-        diff=> diff.as_ref().unwrap()
-    };
-    print_staged_files(diff);
+    print_staged().ok();
 }
